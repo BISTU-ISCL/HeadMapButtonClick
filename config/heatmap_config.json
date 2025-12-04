@@ -1,0 +1,9 @@
+{
+  "pointRadius": 30,
+  "heatmapOpacity": 0.7,
+  "autoNormalize": true,
+  "normalizedCoordinates": true,
+  "coldColor": "#0078ff",
+  "hotColor": "#ff3300",
+  "showCrosshair": false
+}
