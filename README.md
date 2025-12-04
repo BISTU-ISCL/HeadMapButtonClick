@@ -1,23 +1,26 @@
 # HeatMapOverlay 控件
 
-此仓库提供一个可添加到 Qt 控件库的鼠标点击热力图控件 **HeatMapOverlay**，并附带 Qt Designer 插件与示例程序。
+此仓库提供一个可添加到 Qt 控件库的鼠标点击热力图控件 **HeatMapOverlay**，并附带 Qt Designer 插件与示例程序，可在任务录屏或静态截图上叠加鼠标点击热图（类似眼动热图的可视化效果）。
 
 ## 特性
 - 透明蒙版：可覆盖在任意 QWidget 或背景图片上显示热点分布。
 - 支持 Qt Designer：提供 `HeatMapOverlayPlugin`，可直接拖拽到界面。
 - 丰富属性：热力点半径、颜色渐变、透明度、自动归一化、坐标归一化、辅助十字线等。
-- 自适应缩放：使用归一化坐标时，可随背景缩放保持热点位置正确。
+- 自适应缩放：支持“完整适配”/“铺满裁剪”两种缩放模式，热区半径可随背景缩放无失真，方便替换背景图片后直接扣上蒙版展示。
 - Demo 应用：加载图片、录入点击、实时查看热力图效果。
 
 ## 主要属性
+- `scaleMode (ScaleMode)`: 背景缩放方式，`FitInside`（完整呈现有留边）或 `CoverWidget`（铺满裁剪）。
 - `baseImage (QImage)`: 背景图片，可选；为空时仅显示热力图。
 - `clickPoints (QVector<QPointF>)`: 点击坐标，默认使用 0~1 归一化坐标。
 - `pointRadius (int)`: 热力点半径，控制模糊范围。
+- `adaptivePointRadius (bool)`: 是否随背景缩放自动放大/缩小半径，保证热点大小不失真。
 - `heatmapOpacity (qreal)`: 热力图整体透明度 (0~1)。
 - `autoNormalize (bool)`: 自动归一化叠加强度，避免局部过曝。
 - `normalizedCoordinates (bool)`: 是否启用归一化坐标。
 - `coldColor/hotColor (QColor)`: 热力渐变的冷/热端颜色。
 - `showCrosshair (bool)`: 是否显示调试用十字线。
+- `displayRect()`: 返回热图实际绘制区域（考虑 letterbox），便于外部坐标映射。
 
 ## 构建
 需要 Qt 5 或 Qt 6（Widgets/Gui/Designer 模块）。插件**必须与宿主工具使用同一 Qt 主版本**（例如 Qt Creator 6 使用 Qt 6，自带的 Qt Designer 仍基于 Qt 6），否则会在 Qt Creator 中无法加载。
@@ -63,14 +66,15 @@ overlay->setPointRadius(40);
 overlay->setHeatmapOpacity(0.6);
 overlay->setColdColor(QColor("#00bcd4"));
 overlay->setHotColor(QColor("#ff5722"));
+overlay->setScaleMode(HeatMapOverlay::FitInside); // 按需选择 FitInside / CoverWidget
 
 QVector<QPointF> clicks = { {0.2, 0.3}, {0.5, 0.6}, {0.8, 0.25} };
 overlay->setClickPoints(clicks);
 ```
-3. 如需记录运行时点击，可在宿主控件的鼠标事件中调用 `addClick()`（传入归一化坐标更易于缩放显示）。
+3. 如需记录运行时点击，可在宿主控件的鼠标事件中调用 `addClick()`（传入归一化坐标更易于缩放显示；可使用 `displayRect()` 将窗口坐标转换为背景坐标再归一化）。
 
 ## 设计要点
 - 热力叠加使用 `CompositionMode_Plus` 叠加径向渐变，实现平滑热点。
 - 可选自动归一化，将最大透明度拉升到 255，保证热点对比度。
-- 背景图片按 `KeepAspectRatioByExpanding` 缩放并居中裁剪，确保蒙版铺满控件。
+- 背景缩放模式可切换：`FitInside` 保持全图、`CoverWidget` 铺满裁剪；热力图与背景共享同一映射，替换图片或窗口缩放均保持热点位置一致。
 - 插件使用 `QDesignerCustomWidgetInterface`，可在设计时调整公开的属性。

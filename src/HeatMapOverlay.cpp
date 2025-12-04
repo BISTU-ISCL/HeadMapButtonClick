@@ -4,6 +4,7 @@
 #include <QPaintEvent>
 #include <QResizeEvent>
 #include <QtMath>
+#include <QRadialGradient>
 #include <cmath>
 
 HeatMapOverlay::HeatMapOverlay(QWidget *parent)
@@ -50,6 +51,26 @@ void HeatMapOverlay::setPointRadius(int radius)
     m_pointRadius = qMax(1, radius);
     m_dirty = true;
     emit pointRadiusChanged();
+    update();
+}
+
+void HeatMapOverlay::setScaleMode(ScaleMode mode)
+{
+    if (mode == m_scaleMode)
+        return;
+    m_scaleMode = mode;
+    m_dirty = true;
+    emit scaleModeChanged();
+    update();
+}
+
+void HeatMapOverlay::setAdaptivePointRadius(bool on)
+{
+    if (on == m_adaptivePointRadius)
+        return;
+    m_adaptivePointRadius = on;
+    m_dirty = true;
+    emit adaptivePointRadiusChanged();
     update();
 }
 
@@ -128,9 +149,12 @@ void HeatMapOverlay::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::Antialiasing, true);
 
     // 绘制背景图片，可根据控件大小自适应缩放
-    if (!m_baseImage.isNull()) {
-        QImage scaled = m_baseImage.scaled(size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-        painter.drawImage(rect(), scaled, scaled.rect());
+    QRectF targetRect = imageDisplayRect();
+    if (!m_baseImage.isNull() && !targetRect.isEmpty()) {
+        QSize targetSize = targetRect.size().toSize();
+        Qt::AspectRatioMode mode = (m_scaleMode == FitInside) ? Qt::KeepAspectRatio : Qt::KeepAspectRatioByExpanding;
+        QImage scaled = m_baseImage.scaled(targetSize, mode, Qt::SmoothTransformation);
+        painter.drawImage(targetRect, scaled, scaled.rect());
     }
 
     // 生成热力图缓存
@@ -157,25 +181,68 @@ void HeatMapOverlay::resizeEvent(QResizeEvent *event)
     m_dirty = true;
 }
 
-QPointF HeatMapOverlay::mapToDisplay(const QPointF &pos) const
+QRectF HeatMapOverlay::displayRect() const
 {
-    if (!m_normalizedCoords)
-        return pos;
+    return imageDisplayRect();
+}
+
+QRectF HeatMapOverlay::imageDisplayRect() const
+{
+    if (width() <= 0 || height() <= 0)
+        return QRectF();
 
     if (m_baseImage.isNull())
-        return QPointF(pos.x() * width(), pos.y() * height());
+        return QRectF(QPointF(0, 0), QSizeF(width(), height()));
 
-    // 将 0~1 的归一化坐标映射到当前显示区域
     QSizeF scaledSize = m_baseImage.size();
-    scaledSize.scale(size(), Qt::KeepAspectRatioByExpanding);
+    Qt::AspectRatioMode mode = (m_scaleMode == FitInside) ? Qt::KeepAspectRatio : Qt::KeepAspectRatioByExpanding;
+    scaledSize.scale(size(), mode);
 
-    // 计算图片在控件中的偏移（居中裁剪）
-    qreal offsetX = (scaledSize.width() - width()) / 2.0;
-    qreal offsetY = (scaledSize.height() - height()) / 2.0;
+    QPointF topLeft((width() - scaledSize.width()) / 2.0,
+                    (height() - scaledSize.height()) / 2.0);
+    return QRectF(topLeft, scaledSize);
+}
 
-    QPointF mapped(pos.x() * scaledSize.width() - offsetX,
-                   pos.y() * scaledSize.height() - offsetY);
-    return mapped;
+QPointF HeatMapOverlay::mapToDisplay(const QPointF &pos) const
+{
+    QRectF targetRect = imageDisplayRect();
+
+    if (m_normalizedCoords) {
+        if (targetRect.isEmpty())
+            return QPointF(pos.x() * width(), pos.y() * height());
+
+        return QPointF(targetRect.left() + pos.x() * targetRect.width(),
+                       targetRect.top() + pos.y() * targetRect.height());
+    }
+
+    // 非归一化视为原始背景分辨率坐标，需按缩放比例映射
+    if (!m_baseImage.isNull() && !targetRect.isEmpty()) {
+        qreal scaleX = targetRect.width() / m_baseImage.width();
+        qreal scaleY = targetRect.height() / m_baseImage.height();
+        return QPointF(targetRect.left() + pos.x() * scaleX,
+                       targetRect.top() + pos.y() * scaleY);
+    }
+
+    return pos;
+}
+
+qreal HeatMapOverlay::effectiveRadius() const
+{
+    if (!m_adaptivePointRadius)
+        return m_pointRadius;
+
+    qreal scale = 1.0;
+    QRectF rect = imageDisplayRect();
+
+    if (!m_baseImage.isNull() && !rect.isEmpty()) {
+        qreal sx = rect.width() / m_baseImage.width();
+        qreal sy = rect.height() / m_baseImage.height();
+        scale = qMin(sx, sy);
+    } else if (m_normalizedCoords) {
+        scale = qMin(width(), height());
+    }
+
+    return qMax<qreal>(1.0, m_pointRadius * scale);
 }
 
 void HeatMapOverlay::colorizeHeatmap(QImage &heatmap) const
@@ -223,11 +290,13 @@ void HeatMapOverlay::regenerateCache()
     heatPainter.setRenderHint(QPainter::Antialiasing, true);
     heatPainter.setCompositionMode(QPainter::CompositionMode_Plus);
 
+    const qreal radius = effectiveRadius();
+
     // 遍历点击点，使用径向渐变叠加 alpha
     for (const HeatPoint &heatPoint : m_points) {
         QPointF mapped = mapToDisplay(heatPoint.pos);
 
-        QRadialGradient g(mapped, m_pointRadius);
+        QRadialGradient g(mapped, radius);
         QColor centerColor = QColor(255, 255, 255, static_cast<int>(180 * heatPoint.weight));
         QColor edgeColor = QColor(255, 255, 255, 0);
         g.setColorAt(0.0, centerColor);
@@ -235,7 +304,7 @@ void HeatMapOverlay::regenerateCache()
 
         heatPainter.setBrush(g);
         heatPainter.setPen(Qt::NoPen);
-        heatPainter.drawEllipse(mapped, m_pointRadius, m_pointRadius);
+        heatPainter.drawEllipse(mapped, radius, radius);
     }
 
     heatPainter.end();

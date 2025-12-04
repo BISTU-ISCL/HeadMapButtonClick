@@ -1,8 +1,10 @@
 {
   "pointRadius": 30,
+  "adaptivePointRadius": true,
   "heatmapOpacity": 0.7,
   "autoNormalize": true,
   "normalizedCoordinates": true,
+  "scaleMode": "cover", 
   "coldColor": "#0078ff",
   "hotColor": "#ff3300",
   "showCrosshair": false
