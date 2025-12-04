@@ -20,10 +20,11 @@
 - `showCrosshair (bool)`: 是否显示调试用十字线。
 
 ## 构建
-需要 Qt 5 或 Qt 6（Widgets/Gui/Designer 模块）。
+需要 Qt 5 或 Qt 6（Widgets/Gui/Designer 模块）。插件**必须与宿主工具使用同一 Qt 主版本**（例如 Qt Creator 6 使用 Qt 6，自带的 Qt Designer 仍基于 Qt 6），否则会在 Qt Creator 中无法加载。
 ```bash
 mkdir build && cd build
-cmake .. -DCMAKE_PREFIX_PATH=/path/to/Qt
+cmake .. -DCMAKE_PREFIX_PATH=/path/to/Qt \
+  -DHEATMAP_QT_MAJOR=6   # 如果 Qt Creator 基于 Qt 6，请强制使用 6
 cmake --build .
 ```
 生成内容：
@@ -31,7 +32,13 @@ cmake --build .
 - `HeatMapOverlayPlugin`：Qt Designer 插件（输出在 `designer/`，安装到 `lib/designer`）。
 - `heatmap_demo`：示例程序。
 
-将 `designer/` 下的插件复制到 Qt Designer 的插件目录即可在设计器中使用控件。
+将 `designer/` 下的插件复制到 Qt Designer/Qt Creator 的插件目录即可在设计器中使用控件：
+- Qt Creator（Windows 示例）：`<QtCreator安装目录>/lib/Qt/plugins/designer/`
+- 独立 Qt Designer：`<Qt安装目录>/<Qt版本>/msvcXXXX/plugins/designer/`
+
+若 Qt 安装包里附带 Qt 5.15.2 + Qt Creator 6.x（Qt 6），请 **使用 Qt Creator 内置的 Qt 6 工具链** 重新配置 CMake（通过 `-DCMAKE_PREFIX_PATH=<QtCreator>/lib/Qt` 或 Qt Creator 的套件），并指定 `-DHEATMAP_QT_MAJOR=6`，以生成可被 Qt Creator 识别的插件。
+
+> 如果开发环境暂时无法安装 Qt 依赖，可运行 `scripts/generate_sample_heatmap.py` 生成 `artifacts/sample_heatmap.bmp`，快速预览热力图效果。
 
 ## 示例运行
 ```bash

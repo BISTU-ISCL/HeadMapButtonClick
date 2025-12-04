@@ -8,15 +8,27 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 优先尝试 Qt6，其次 Qt5，便于在不同环境构建
-find_package(Qt6 COMPONENTS Widgets Gui Designer QUIET)
-if(NOT Qt6_FOUND)
+# 允许显式指定 Qt 主版本，避免 Qt Creator 与 Qt 安装版本不一致时加载失败
+set(HEATMAP_QT_MAJOR "" CACHE STRING "Force Qt major version (5 or 6) to match host tools (Qt Creator/Designer)")
+if(HEATMAP_QT_MAJOR STREQUAL "6")
+    find_package(Qt6 COMPONENTS Widgets Gui Designer REQUIRED)
+    set(QT_FOUND_VERSION 6)
+    set(QT_PREFIX Qt6)
+elseif(HEATMAP_QT_MAJOR STREQUAL "5")
     find_package(Qt5 COMPONENTS Widgets Gui Designer REQUIRED)
     set(QT_FOUND_VERSION 5)
     set(QT_PREFIX Qt5)
 else()
-    set(QT_FOUND_VERSION 6)
-    set(QT_PREFIX Qt6)
+    # 默认优先 Qt6，再回落 Qt5
+    find_package(Qt6 COMPONENTS Widgets Gui Designer QUIET)
+    if(NOT Qt6_FOUND)
+        find_package(Qt5 COMPONENTS Widgets Gui Designer REQUIRED)
+        set(QT_FOUND_VERSION 5)
+        set(QT_PREFIX Qt5)
+    else()
+        set(QT_FOUND_VERSION 6)
+        set(QT_PREFIX Qt6)
+    endif()
 endif()
 
 set(HEATMAP_SOURCES
