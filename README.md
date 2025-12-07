@@ -23,13 +23,11 @@
 - `displayRect()`: 返回热图实际绘制区域（考虑 letterbox），便于外部坐标映射。
 
 ## 构建
-需要 Qt 5 或 Qt 6（Widgets/Gui/Designer 模块）。插件**必须与宿主工具使用同一 Qt 主版本**，否则不会被加载。为兼容 Qt 5.15.2 附带的独立 Qt Designer，本工程默认仅使用 Qt5；只有显式传入 `-DHEATMAP_QT_MAJOR=6` 时才会切换 Qt6 构建，避免误用 Qt6 导致 Qt 5.15.2 Designer 无法加载。
+仅支持 Qt 5.15.2（Widgets/Gui/Designer 模块）。插件必须由 **Qt 5.15.2 工具链** 编译并加载，方可在同版本 Qt Designer/Qt Creator（使用 Qt 5.15.2 套件）中显示；Qt 6 或其他版本不在支持范围内。
 ```bash
 mkdir build && cd build
-# 推荐：给 Qt 5.15.2 Designer 构建插件（默认即 Qt5，无需额外参数）
-cmake .. -DCMAKE_PREFIX_PATH=/path/to/Qt
-# 如果要给 Qt Creator 6 (Qt6) 使用，则指定 6
-# cmake .. -DCMAKE_PREFIX_PATH=/path/to/Qt -DHEATMAP_QT_MAJOR=6
+# 给 Qt 5.15.2 Designer/Qt Creator (Qt 5.15.2 套件) 构建插件
+cmake .. -DCMAKE_PREFIX_PATH=/path/to/Qt/5.15.2/
 cmake --build .
 ```
 生成内容：
@@ -37,13 +35,11 @@ cmake --build .
 - `HeatMapOverlayPlugin`：Qt Designer 插件（输出在 `designer/`，安装到 `lib/designer`）。
 - `heatmap_demo`：示例程序。
 
-将 `designer/` 下的插件复制到 Qt Designer/Qt Creator 的插件目录即可在设计器中使用控件：
-- Qt Creator（Windows 示例）：`<QtCreator安装目录>/lib/Qt/plugins/designer/`
-- 独立 Qt Designer：`<Qt安装目录>/<Qt版本>/msvcXXXX/plugins/designer/`
+将 `designer/` 下的插件复制到 Qt 5.15.2 对应的插件目录即可在设计器中使用控件：
+- Qt Creator（需选择 Qt 5.15.2 Kit）：`<QtCreator安装目录>/lib/Qt/plugins/designer/`
+- 独立 Qt Designer 5.15.2：`<Qt安装目录>/5.15.2/msvcXXXX/plugins/designer/`
 
-若 Qt 安装包里附带 Qt 5.15.2 + Qt Creator 6.x（Qt 6），请按需选择：
-- 想在“独立 Qt Designer 5.15.2”里使用：默认即可（或显式 `-DHEATMAP_QT_MAJOR=5`），并指向 Qt 5.15.2 的前缀；插件放到 Qt5 的 `plugins/designer` 路径。
-- 想在“Qt Creator 6”里使用：指定 `-DHEATMAP_QT_MAJOR=6`，并使用 Qt Creator 套件里的 Qt6 前缀。
+> 若 Qt 安装包同时包含 Qt Creator 6.x（基于 Qt6），请在 Qt Creator 内选择基于 **Qt 5.15.2** 的 Kit 编译/运行，否则插件不会被加载。
 
 > 如果开发环境暂时无法安装 Qt 依赖，可运行 `scripts/generate_sample_heatmap.py` 生成 `artifacts/sample_heatmap.bmp`，快速预览热力图效果。
 
