@@ -9,27 +9,21 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 允许显式指定 Qt 主版本，避免 Qt Creator 与 Qt 安装版本不一致时加载失败
-set(HEATMAP_QT_MAJOR "" CACHE STRING "Force Qt major version (5 or 6) to match host tools (Qt Creator/Designer)")
+# 默认使用 Qt5（匹配 Qt 5.15.2 Designer），只有显式传入 -DHEATMAP_QT_MAJOR=6 时才会选择 Qt6
+set(HEATMAP_QT_MAJOR "5" CACHE STRING "Force Qt major version (5 or 6) to match host tools (Qt Creator/Designer)")
 if(HEATMAP_QT_MAJOR STREQUAL "6")
     find_package(Qt6 COMPONENTS Widgets Gui Designer REQUIRED)
     set(QT_FOUND_VERSION 6)
     set(QT_PREFIX Qt6)
 elseif(HEATMAP_QT_MAJOR STREQUAL "5")
-    find_package(Qt5 COMPONENTS Widgets Gui Designer REQUIRED)
+    find_package(Qt5 5.15 COMPONENTS Widgets Gui Designer REQUIRED)
     set(QT_FOUND_VERSION 5)
     set(QT_PREFIX Qt5)
 else()
-    # 默认优先 Qt6，再回落 Qt5
-    find_package(Qt6 COMPONENTS Widgets Gui Designer QUIET)
-    if(NOT Qt6_FOUND)
-        find_package(Qt5 COMPONENTS Widgets Gui Designer REQUIRED)
-        set(QT_FOUND_VERSION 5)
-        set(QT_PREFIX Qt5)
-    else()
-        set(QT_FOUND_VERSION 6)
-        set(QT_PREFIX Qt6)
-    endif()
+    message(FATAL_ERROR "Unknown HEATMAP_QT_MAJOR='${HEATMAP_QT_MAJOR}'. Please set to 5 (Qt 5.15.2 Designer) or 6 (Qt Creator 6).")
 endif()
+
+message(STATUS "HeatMapOverlay using Qt${QT_FOUND_VERSION} (${QT_PREFIX})")
 
 set(HEATMAP_SOURCES
     src/HeatMapOverlay.cpp

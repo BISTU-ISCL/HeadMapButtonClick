@@ -23,11 +23,13 @@
 - `displayRect()`: 返回热图实际绘制区域（考虑 letterbox），便于外部坐标映射。
 
 ## 构建
-需要 Qt 5 或 Qt 6（Widgets/Gui/Designer 模块）。插件**必须与宿主工具使用同一 Qt 主版本**（例如 Qt Creator 6 使用 Qt 6，自带的 Qt Designer 仍基于 Qt 6），否则会在 Qt Creator 中无法加载。
+需要 Qt 5 或 Qt 6（Widgets/Gui/Designer 模块）。插件**必须与宿主工具使用同一 Qt 主版本**，否则不会被加载。为兼容 Qt 5.15.2 附带的独立 Qt Designer，本工程默认仅使用 Qt5；只有显式传入 `-DHEATMAP_QT_MAJOR=6` 时才会切换 Qt6 构建，避免误用 Qt6 导致 Qt 5.15.2 Designer 无法加载。
 ```bash
 mkdir build && cd build
-cmake .. -DCMAKE_PREFIX_PATH=/path/to/Qt \
-  -DHEATMAP_QT_MAJOR=6   # 如果 Qt Creator 基于 Qt 6，请强制使用 6
+# 推荐：给 Qt 5.15.2 Designer 构建插件（默认即 Qt5，无需额外参数）
+cmake .. -DCMAKE_PREFIX_PATH=/path/to/Qt
+# 如果要给 Qt Creator 6 (Qt6) 使用，则指定 6
+# cmake .. -DCMAKE_PREFIX_PATH=/path/to/Qt -DHEATMAP_QT_MAJOR=6
 cmake --build .
 ```
 生成内容：
@@ -39,7 +41,9 @@ cmake --build .
 - Qt Creator（Windows 示例）：`<QtCreator安装目录>/lib/Qt/plugins/designer/`
 - 独立 Qt Designer：`<Qt安装目录>/<Qt版本>/msvcXXXX/plugins/designer/`
 
-若 Qt 安装包里附带 Qt 5.15.2 + Qt Creator 6.x（Qt 6），请 **使用 Qt Creator 内置的 Qt 6 工具链** 重新配置 CMake（通过 `-DCMAKE_PREFIX_PATH=<QtCreator>/lib/Qt` 或 Qt Creator 的套件），并指定 `-DHEATMAP_QT_MAJOR=6`，以生成可被 Qt Creator 识别的插件。
+若 Qt 安装包里附带 Qt 5.15.2 + Qt Creator 6.x（Qt 6），请按需选择：
+- 想在“独立 Qt Designer 5.15.2”里使用：默认即可（或显式 `-DHEATMAP_QT_MAJOR=5`），并指向 Qt 5.15.2 的前缀；插件放到 Qt5 的 `plugins/designer` 路径。
+- 想在“Qt Creator 6”里使用：指定 `-DHEATMAP_QT_MAJOR=6`，并使用 Qt Creator 套件里的 Qt6 前缀。
 
 > 如果开发环境暂时无法安装 Qt 依赖，可运行 `scripts/generate_sample_heatmap.py` 生成 `artifacts/sample_heatmap.bmp`，快速预览热力图效果。
 
